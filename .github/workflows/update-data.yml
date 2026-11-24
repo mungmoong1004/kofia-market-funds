@@ -1,0 +1,33 @@
+name: 데이터 갱신
+
+on:
+  schedule:
+    - cron: "0 9 * * 1-5"   # 평일 18:00 KST (UTC 09:00)
+    - cron: "0 23 * * 0-4"  # 평일 08:00 KST (UTC 전날 23:00) — 아침에 늦게 올라온 자료 보완
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 금융투자협회 데이터 받기
+        run: |
+          python fetch_kofia.py
+          python make_csv.py
+      - name: 바뀐 데이터 커밋
+        run: |
+          if git diff --quiet -- docs/data/fund.csv docs/data/credit.csv docs/data/shares.csv; then
+            echo "새 데이터 없음"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data
+          git commit -m "데이터 갱신: $(tail -1 docs/data/fund.csv | cut -d, -f1)"
+          git push

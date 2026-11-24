@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>증시자금·신용공여 동향</title>
+<meta name="description" content="금융투자협회 FreeSIS 증시자금추이, 신용공여 잔고, 신용거래 체결주수 일간 대시보드">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101418" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 요약 문장 → 지표 카드 → 기간 선택(고정) → 섹션별 차트 카드 그리드 → 최근 표 */
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --fg: #15191e; --muted: #5d6673; --line: #e2e5ea; --grid: #edf0f3;
+  --c0: #2f5fd0; --c1: #e07b39; --c2: #2a9d8f; --c3: #c2415b;
+  --up: #c2415b; --down: #2f5fd0;
+  --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101418; --panel: #171c22; --fg: #e8ebef; --muted: #98a2ae; --line: #2a313a; --grid: #222930;
+    --c0: #6f98ff; --c1: #f0a066; --c2: #4fc4b4; --c3: #ef7a92; --up: #ef7a92; --down: #6f98ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101418; --panel: #171c22; --fg: #e8ebef; --muted: #98a2ae; --line: #2a313a; --grid: #222930;
+  --c0: #6f98ff; --c1: #f0a066; --c2: #4fc4b4; --c3: #ef7a92; --up: #ef7a92; --down: #6f98ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: max(20px, env(safe-area-inset-top)) max(40px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right));
+  display: flex; flex-direction: column; gap: 28px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .06em; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); font-weight: 600; letter-spacing: -.01em; text-wrap: balance; }
+.lede { margin: 0; max-width: 68ch; font-size: 16px; }
+.lede b { font-weight: 600; }
+.meta { margin: 0; font-size: 12px; color: var(--muted); }
+.meta a { color: inherit; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
+@media (max-width: 520px) { .kpis { grid-template-columns: 1fr 1fr; gap: 8px; } }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kpi-label { font-size: 12px; color: var(--muted); }
+.kpi-value { font-size: clamp(22px, 3vw, 28px); font-weight: 500; line-height: 1.15; white-space: nowrap; }
+.kpi-unit { font-family: var(--font); font-size: 12px; color: var(--muted); margin-left: 3px; }
+.kpi-chg { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; color: var(--muted); }
+.up { color: var(--up); } .down { color: var(--down); }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 8px; margin-block: -8px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bar-label { font-size: 12px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 13px; padding: 7px 13px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); font-weight: 500; }
+.seg button:focus-visible { outline: 2px solid var(--c0); outline-offset: -2px; }
+section { scroll-margin-top: 60px; display: flex; flex-direction: column; gap: 12px; }
+h2 { margin: 0; font-size: 19px; font-weight: 600; }
+.sub { margin: 0; font-size: 13px; color: var(--muted); max-width: 75ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card h3 { margin: 0; font-size: 14px; font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.chart { position: relative; height: 230px; width: 100%; touch-action: pan-y; }
+.chart svg { display: block; overflow: visible; }
+.ph { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
+.axis text { fill: var(--muted); font-size: 11px; font-family: var(--mono); }
+.axis line, .axis path { stroke: var(--line); }
+.gridlines line { stroke: var(--grid); }
+.hl { stroke: var(--muted); stroke-dasharray: 3 3; }
+.tip { position: absolute; top: 2px; z-index: 3; pointer-events: none; background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgba(0,0,0,.12); border-radius: 8px; padding: 8px 10px; font-size: 12px; min-width: 160px; display: flex; flex-direction: column; gap: 3px; }
+[hidden] { display: none !important; }
+.tip-date { color: var(--muted); font-family: var(--mono); }
+.tip-row { display: flex; align-items: center; gap: 6px; }
+.tip-row b { margin-left: auto; padding-left: 12px; font-weight: 500; font-family: var(--mono); }
+.table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
+th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--line); }
+tbody tr:last-child td { border-bottom: 0; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; vertical-align: bottom; }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(--muted); max-width: 80ch; }
+.err { padding: 12px 14px; border: 1px solid var(--up); border-radius: var(--r); color: var(--up); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">금융투자협회 FreeSIS · 일간 통계</span>
+    <h1>증시자금·신용공여 동향</h1>
+    <p class="lede" id="lede">데이터를 불러오는 중입니다…</p>
+    <p class="meta">출처: <a href="https://freesis.kofia.or.kr/" target="_blank" rel="noopener">금융투자협회 종합통계포털</a> · 주식 &gt; 증시자금 / 신용공여현황 · 2018년 1월부터 · 데이터 갱신 <span id="updated" class="num">—</span></p>
+  </header>
+  <div id="error" class="err" hidden></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="bar">
+    <span class="bar-label">차트 기간</span>
+    <div class="seg" role="group" aria-label="차트 기간" id="range">
+      <button type="button" data-r="63" aria-pressed="false">3개월</button>
+      <button type="button" data-r="126" aria-pressed="false">6개월</button>
+      <button type="button" data-r="250" aria-pressed="true">1년</button>
+      <button type="button" data-r="750" aria-pressed="false">3년</button>
+      <button type="button" data-r="0" aria-pressed="false">전체</button>
+    </div>
+  </div>
+
+  <section id="fund">
+    <h2>증시자금 추이</h2>
+    <p class="sub">투자자예탁금은 장내파생상품 거래예수금을 뺀 금액입니다. 미수금은 결제일까지 대금을 내지 못한 위탁매매 금액이고, 반대매매는 그 미수금을 회수하려고 증권사가 강제로 처분한 금액입니다.</p>
+    <div class="grid">
+      <div class="card"><h3>예탁금 · 파생 예수금 · RP 매도잔고 (조원)</h3><div class="legend" data-chart="c-fund"></div><div class="chart" id="c-fund"></div></div>
+      <div class="card"><h3>위탁매매 미수금 (억원)</h3><div class="legend" data-chart="c-unpaid"></div><div class="chart" id="c-unpaid"></div></div>
+      <div class="card"><h3>실제 반대매매금액 (억원)</h3><div class="legend" data-chart="c-forced"></div><div class="chart" id="c-forced"></div></div>
+    </div>
+  </section>
+
+  <section id="credit">
+    <h2>신용공여 잔고 추이</h2>
+    <p class="sub">신용거래융자는 증권사에서 돈을 빌려 산 주식의 잔고, 신용거래대주는 주식을 빌려 판 잔고입니다. 예탁증권담보융자는 보유 주식을 담보로 받은 대출입니다.</p>
+    <div class="grid">
+      <div class="card"><h3>신용거래융자 잔고 (조원)</h3><div class="legend" data-chart="c-loan"></div><div class="chart" id="c-loan"></div></div>
+      <div class="card"><h3>신용거래대주 잔고 (억원)</h3><div class="legend" data-chart="c-short"></div><div class="chart" id="c-short"></div></div>
+      <div class="card"><h3>예탁증권담보융자 잔고 (조원)</h3><div class="legend" data-chart="c-sec"></div><div class="chart" id="c-sec"></div></div>
+    </div>
+  </section>
+
+  <section id="shares">
+    <h2>신용거래 체결주수 추이</h2>
+    <p class="sub">협회가 '신용거래 체결주수'로 공시하는 주식 수입니다. 융자는 백만주, 대주는 천주 단위입니다.</p>
+    <div class="grid">
+      <div class="card"><h3>신용거래융자 체결주수 (백만주)</h3><div class="legend" data-chart="c-shloan"></div><div class="chart" id="c-shloan"></div></div>
+      <div class="card"><h3>신용거래대주 체결주수 (천주)</h3><div class="legend" data-chart="c-shshort"></div><div class="chart" id="c-shshort"></div></div>
+    </div>
+  </section>
+
+  <section id="recent">
+    <h2>최근 10거래일</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>일자</th><th>투자자예탁금<br>(조원)</th><th>미수금<br>(억원)</th><th>반대매매<br>(억원)</th><th>반대매매<br>비중(%)</th>
+          <th>신용융자 잔고<br>(조원)</th><th>대주 잔고<br>(억원)</th><th>융자 체결주수<br>(백만주)</th>
+        </tr></thead>
+        <tbody id="recent-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details>
+    <summary>지표 정의와 단위</summary>
+    <ul>
+      <li>금액은 원 단위 원자료를 억원(1억=10⁸원)으로 바꿨고, 조원은 억원을 10,000으로 나눈 값입니다.</li>
+      <li>'전일'은 직전 거래일, '20일'은 20거래일 전(약 1개월) 대비 변화입니다. 증가는 빨강, 감소는 파랑입니다.</li>
+      <li>반대매매 비중은 협회가 공시한 '위탁매매 미수금 대비 실제 반대매매금액 비중(%)'입니다.</li>
+      <li>협회 통계는 보통 다음 영업일에 발표되며, 이 페이지는 평일 저녁 자동으로 갱신됩니다.</li>
+    </ul>
+  </details>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(function () {
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const C = (i) => `var(--c${i})`;
+  const f0 = d3.format(',.0f'), f1 = d3.format(',.1f'), f2 = d3.format(',.2f');
+  const sgn = (f) => (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + f(Math.abs(v));
+  const parse = d3.utcParse('%Y-%m-%d');
+  const dateFmt = d3.utcFormat('%Y.%m.%d');
+  let RANGE = 250;
+  try { const r = localStorage.getItem('kf-range'); if (r !== null) RANGE = +r; } catch (e) {}
+  const DATA = {};
+
+  const charts = {
+    'c-fund':   { src: 'fund', div: 10000, unit: '조원', fmt: f2, tick: f0, series: [['deposit', '투자자예탁금', 0], ['deriv_deposit', '파생 거래예수금', 1], ['rp', 'RP 매도잔고', 2]] },
+    'c-unpaid': { src: 'fund', unit: '억원', fmt: f0, series: [['unpaid', '위탁매매 미수금', 0]] },
+    'c-forced': { src: 'fund', type: 'bar', unit: '억원', fmt: f0, series: [['forced_sale', '반대매매금액', 3]],
+                  extra: [['forced_ratio', '미수금 대비 비중', (v) => (v === '' || v == null ? '—' : v + '%')]] },
+    'c-loan':   { src: 'credit', type: 'stack', div: 10000, unit: '조원', fmt: f2, tick: f0, series: [['loan_kospi', '유가증권', 0], ['loan_kosdaq', '코스닥', 1]] },
+    'c-short':  { src: 'credit', type: 'stack', unit: '억원', fmt: f0, series: [['short_kospi', '유가증권', 0], ['short_kosdaq', '코스닥', 1]] },
+    'c-sec':    { src: 'credit', div: 10000, unit: '조원', fmt: f2, tick: f0, series: [['sec_loan', '예탁증권담보융자', 2]] },
+    'c-shloan': { src: 'shares', type: 'stack', div: 1000, unit: '백만주', fmt: f1, series: [['loan_kospi', '유가증권', 0], ['loan_kosdaq', '코스닥', 1]] },
+    'c-shshort':{ src: 'shares', type: 'stack', unit: '천주', fmt: f0, series: [['short_kospi', '유가증권', 0], ['short_kosdaq', '코스닥', 1]] }
+  };
+
+  // 범례
+  document.querySelectorAll('.legend[data-chart]').forEach((el) => {
+    const cfg = charts[el.dataset.chart];
+    cfg.series.forEach(([, label, ci]) => {
+      const s = document.createElement('span');
+      const i = document.createElement('i'); i.className = 'sw'; i.style.background = C(ci);
+      s.append(i, document.createTextNode(label));
+      el.append(s);
+    });
+  });
+
+  function drawChart(id) {
+    const el = document.getElementById(id), cfg = charts[id];
+    const all = DATA[cfg.src];
+    el.replaceChildren();
+    if (!all) { const p = document.createElement('div'); p.className = 'ph'; p.textContent = '—'; el.append(p); return; }
+    const raw = RANGE > 0 ? all.slice(-RANGE) : all;
+    const keys = cfg.series.map((s) => s[0]);
+    const data = raw.map((r) => {
+      const o = { date: parse(r.date), r };
+      keys.forEach((k) => { o[k] = r[k] === '' || r[k] == null ? null : +r[k] / (cfg.div || 1); });
+      o.total = d3.sum(keys, (k) => o[k] || 0);
+      return o;
+    });
+    const W = Math.max(240, el.clientWidth), H = el.clientHeight || 230, mt = 8, mb = 22, mr = 8;
+    const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('role', 'img')
+      .attr('aria-label', el.parentElement.querySelector('h3').textContent + ' 차트');
+    const ymax = cfg.type === 'stack' ? d3.max(data, (d) => d.total) : d3.max(data, (d) => d3.max(keys, (k) => d[k]));
+    const y = d3.scaleLinear().domain([0, ymax || 1]).nice();
+    const yt = y.ticks(W < 360 ? 4 : 5);
+    const tf = cfg.tick || cfg.fmt;
+    const probe = svg.append('g').attr('class', 'axis');
+    let ml = 0;
+    yt.forEach((t) => { ml = Math.max(ml, probe.append('text').text(tf(t)).node().getComputedTextLength()); });
+    probe.remove();
+    ml = Math.ceil(ml) + 8;
+    const iw = W - ml - mr, ih = H - mt - mb;
+    const x = d3.scaleUtc().domain(d3.extent(data, (d) => d.date)).range([0, iw]);
+    y.range([ih, 0]);
+    const g = svg.append('g').attr('transform', `translate(${ml},${mt})`);
+    g.append('g').attr('class', 'gridlines').selectAll('line').data(yt).join('line')
+      .attr('x1', 0).attr('x2', iw).attr('y1', y).attr('y2', y);
+    g.append('g').attr('class', 'axis').call(d3.axisLeft(y).tickValues(yt).tickFormat(tf).tickSize(0).tickPadding(6))
+      .call((a) => a.select('.domain').remove());
+    const days = (x.domain()[1] - x.domain()[0]) / 864e5;
+    const xAxis = d3.axisBottom(x).tickSizeOuter(0)
+      .tickFormat(days > 900 ? d3.utcFormat('%Y') : days > 120 ? d3.utcFormat('%y.%m') : d3.utcFormat('%m.%d'));
+    if (days > 900) xAxis.ticks(d3.utcYear.every(days > 2200 && iw < 500 ? 2 : 1));
+    else xAxis.ticks(Math.max(2, Math.floor(iw / 75)));
+    g.append('g').attr('class', 'axis').attr('transform', `translate(0,${ih})`).call(xAxis);
+    const colors = cfg.series.map((s) => C(s[2]));
+
+    if (cfg.type === 'stack') {
+      const st = d3.stack().keys(keys).value((d, k) => d[k] || 0)(data);
+      g.append('g').selectAll('path').data(st).join('path')
+        .attr('d', d3.area().x((d) => x(d.data.date)).y0((d) => y(d[0])).y1((d) => y(d[1])))
+        .style('fill', (d, i) => colors[i]).style('fill-opacity', 0.85);
+    } else if (cfg.type === 'bar') {
+      const k = keys[0], bw = Math.max(1, (iw / data.length) * 0.7);
+      g.append('g').selectAll('rect').data(data.filter((d) => d[k] != null)).join('rect')
+        .attr('x', (d) => x(d.date) - bw / 2).attr('width', bw)
+        .attr('y', (d) => y(d[k])).attr('height', (d) => Math.max(0, ih - y(d[k]))).style('fill', colors[0]);
+    } else {
+      keys.forEach((k, i) => g.append('path').datum(data)
+        .attr('d', d3.line().defined((d) => d[k] != null).x((d) => x(d.date)).y((d) => y(d[k])))
+        .style('fill', 'none').style('stroke', colors[i]).style('stroke-width', 1.6).style('stroke-linejoin', 'round'));
+    }
+    // 마지막 점 강조
+    const last = data[data.length - 1];
+    if (cfg.type !== 'bar') {
+      let acc = 0;
+      keys.forEach((k, i) => {
+        const v = cfg.type === 'stack' ? (acc += last[k] || 0) : last[k];
+        if (v != null) g.append('circle').attr('cx', x(last.date)).attr('cy', y(v)).attr('r', 3).style('fill', colors[i]);
+      });
+    }
+
+    const hl = g.append('line').attr('class', 'hl').attr('y1', 0).attr('y2', ih).style('opacity', 0);
+    const dots = g.append('g').style('opacity', 0);
+    const dotSel = dots.selectAll('circle').data(keys).join('circle').attr('r', 3.5)
+      .style('fill', (k, i) => colors[i]).style('stroke', 'var(--panel)').style('stroke-width', 1.5);
+    const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.append(tip);
+    const bis = d3.bisector((d) => d.date).center;
+    const row = (label, value, color) => {
+      const r = document.createElement('div'); r.className = 'tip-row';
+      if (color) { const s = document.createElement('i'); s.className = 'sw'; s.style.background = color; r.append(s); }
+      const l = document.createElement('span'); l.textContent = label;
+      const b = document.createElement('b'); b.textContent = value;
+      r.append(l, b); return r;
+    };
+    const show = (ev) => {
+      const [mx] = d3.pointer(ev, g.node());
+      const d = data[bis(data, x.invert(mx))]; if (!d) return;
+      const px = x(d.date);
+      hl.attr('x1', px).attr('x2', px).style('opacity', 1);
+      let acc = 0;
+      dotSel.attr('cx', px).attr('cy', (k) => cfg.type === 'stack' ? y(acc += d[k] || 0) : d[k] == null ? -99 : y(d[k]));
+      dots.style('opacity', cfg.type === 'bar' ? 0 : 1);
+      const kids = [];
+      const dt = document.createElement('div'); dt.className = 'tip-date'; dt.textContent = dateFmt(d.date); kids.push(dt);
+      cfg.series.forEach(([k, label], i) => kids.push(row(label, d[k] == null ? '—' : cfg.fmt(d[k]) + ' ' + cfg.unit, colors[i])));
+      if (cfg.type === 'stack') kids.push(row('합계', cfg.fmt(d.total) + ' ' + cfg.unit));
+      (cfg.extra || []).forEach(([k, label, f]) => kids.push(row(label, f(d.r[k]))));
+      tip.replaceChildren(...kids); tip.hidden = false;
+      const tw = tip.offsetWidth;
+      let left = ml + px + 12;
+      if (left + tw > W) left = Math.max(0, ml + px - tw - 12);
+      tip.style.left = left + 'px';
+    };
+    const hide = () => { tip.hidden = true; hl.style('opacity', 0); dots.style('opacity', 0); };
+    g.append('rect').attr('width', iw).attr('height', ih).style('fill', 'transparent')
+      .on('pointermove', show).on('pointerdown', show).on('pointerleave', hide);
+  }
+  const drawAll = () => Object.keys(charts).forEach(drawChart);
+
+  function kpis() {
+    const F = DATA.fund, Cr = DATA.credit;
+    const at = (rows, back) => rows[Math.max(0, rows.length - 1 - back)];
+    const f = [at(F, 0), at(F, 1), at(F, 20)], c = [at(Cr, 0), at(Cr, 1), at(Cr, 20)];
+    const avg20 = d3.mean(F.slice(-20), (r) => +r.forced_sale);
+    const cards = [
+      ['투자자예탁금', f, 'deposit', 1e4, '조원', f2],
+      ['장내파생상품 거래예수금', f, 'deriv_deposit', 1e4, '조원', f2],
+      ['신용거래융자 잔고', c, 'loan_total', 1e4, '조원', f2],
+      ['신용거래대주 잔고', c, 'short_total', 1, '억원', f0],
+      ['위탁매매 미수금', f, 'unpaid', 1, '억원', f0]
+    ];
+    const box = document.getElementById('kpis'); box.replaceChildren();
+    const mk = (cls, txt) => { const s = document.createElement('span'); s.className = cls; s.textContent = txt; return s; };
+    const chg = (label, v, fmt) => { const s = document.createElement('span'); s.append(label + ' '); const n = mk('num ' + (v > 0 ? 'up' : v < 0 ? 'down' : ''), sgn(fmt)(v)); s.append(n); return s; };
+    cards.forEach(([label, rows, k, div, unit, fmt]) => {
+      const v = +rows[0][k] / div, d1 = (+rows[0][k] - +rows[1][k]) / div, d20 = (+rows[0][k] - +rows[2][k]) / div;
+      const card = document.createElement('div'); card.className = 'kpi';
+      const val = mk('kpi-value num', fmt(v)); val.append(mk('kpi-unit', unit));
+      const ch = document.createElement('span'); ch.className = 'kpi-chg'; ch.append(chg('전일', d1, fmt), chg('20일', d20, fmt));
+      card.append(mk('kpi-label', label), val, ch); box.append(card);
+    });
+    const card = document.createElement('div'); card.className = 'kpi';
+    const val = mk('kpi-value num', f0(+f[0].forced_sale)); val.append(mk('kpi-unit', '억원'));
+    const ch = document.createElement('span'); ch.className = 'kpi-chg';
+    const a = document.createElement('span'); a.append('미수금 대비 ', mk('num', f[0].forced_ratio + '%'));
+    const b = document.createElement('span'); b.append('20일 평균 ', mk('num', f0(avg20) + '억'));
+    ch.append(a, b); card.append(mk('kpi-label', '실제 반대매매금액'), val, ch); box.append(card);
+
+    // 요약 문장
+    const lede = document.getElementById('lede'); lede.replaceChildren();
+    const B = (t) => { const b = document.createElement('b'); b.className = 'num'; b.textContent = t; return b; };
+    const dep = +f[0].deposit / 1e4, depM = (+f[0].deposit - +f[2].deposit) / 1e4;
+    const loan = +c[0].loan_total / 1e4, loanM = (+c[0].loan_total - +c[2].loan_total) / 1e4;
+    const dir = (v) => (v >= 0 ? '늘었습니다' : '줄었습니다');
+    lede.append(B(dateFmt(parse(f[0].date))), ' 기준 투자자예탁금은 ', B(f2(dep) + '조원'), ', 신용거래융자 잔고는 ', B(f2(loan) + '조원'),
+      '입니다. 20거래일 전보다 예탁금은 ', B(f2(Math.abs(depM)) + '조원'), ' ' + (depM >= 0 ? '늘었고' : '줄었고') + ', 신용융자 잔고는 ',
+      B(f2(Math.abs(loanM)) + '조원'), ' ' + dir(loanM) + '.');
+  }
+
+  function table() {
+    const byC = new Map(DATA.credit.map((r) => [r.date, r]));
+    const byS = new Map(DATA.shares.map((r) => [r.date, r]));
+    const tb = document.getElementById('recent-body'); tb.replaceChildren();
+    DATA.fund.slice(-10).reverse().forEach((r) => {
+      const c = byC.get(r.date) || {}, s = byS.get(r.date) || {};
+      const cells = [dateFmt(parse(r.date)), f2(+r.deposit / 1e4), f0(+r.unpaid), f0(+r.forced_sale), (+r.forced_ratio).toFixed(1),
+        c.loan_total ? f2(+c.loan_total / 1e4) : '—', c.short_total ? f0(+c.short_total) : '—', s.loan_total ? f1(+s.loan_total / 1e3) : '—'];
+      const tr = document.createElement('tr');
+      cells.forEach((t) => { const td = document.createElement('td'); td.textContent = t; tr.append(td); });
+      tb.append(tr);
+    });
+  }
+
+  // 기간 버튼
+  const btns = document.querySelectorAll('#range button');
+  const syncBtns = () => btns.forEach((b) => b.setAttribute('aria-pressed', +b.dataset.r === RANGE ? 'true' : 'false'));
+  syncBtns();
+  btns.forEach((b) => b.addEventListener('click', () => {
+    RANGE = +b.dataset.r; syncBtns();
+    try { localStorage.setItem('kf-range', String(RANGE)); } catch (e) {}
+    drawAll();
+  }));
+  let rw; let lastW = window.innerWidth;
+  window.addEventListener('resize', () => { if (window.innerWidth === lastW) return; lastW = window.innerWidth; clearTimeout(rw); rw = setTimeout(drawAll, 150); });
+
+  drawAll();
+  const bust = '?v=' + Math.floor(Date.now() / 36e5);
+  Promise.all(['fund', 'credit', 'shares'].map((k) => d3.csv('data/' + k + '.csv' + bust).then((rows) => { DATA[k] = rows; })))
+    .then(() => {
+      kpis(); table(); drawAll();
+      fetch('data/updated.txt' + bust).then((r) => (r.ok ? r.text() : '')).then((t) => { if (t) document.getElementById('updated').textContent = t.trim(); }).catch(() => {});
+    })
+    .catch((e) => {
+      const el = document.getElementById('error'); el.hidden = false;
+      el.textContent = '데이터 파일을 불러오지 못했습니다. 잠시 후 새로고침해 주세요. (' + e.message + ')';
+      document.getElementById('lede').textContent = '';
+    });
+})();
+</script>
+</body>
+</html>
