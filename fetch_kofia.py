@@ -35,6 +35,9 @@ SPECS = {
     "fund":   ("STATSCU0100000060BO", "1000000", ["deposit", "derivDeposit", "rp", "unpaid", "forcedSale", "forcedRatio"]),
     "credit": ("STATSCU0100000070BO", "1000000", ["loanTotal", "loanKospi", "loanKosdaq", "shortTotal", "shortKospi", "shortKosdaq", "ipoLoan", "secLoan"]),
     "shares": ("STATSCU0100000080BO", "1", ["loanTotal", "loanKospi", "loanKosdaq", "shortTotal", "shortKospi", "shortKosdaq"]),
+    # 주식 > 증시동향 > 유가증권시장 / 코스닥시장 (TMPV2 = 종가지수, 단위 설정과 무관)
+    "kospi":  ("STATSCU0100000020BO", "1000000", ["close"]),
+    "kosdaq": ("STATSCU0100000030BO", "1000000", ["close"]),
 }
 out = {"updated": datetime.datetime.now(KST).strftime("%Y-%m-%d %H:%M")}
 # 금액은 백만원, 주수는 주 단위로 받는다 (원 단위로 받으면 큰 값이 #으로 가려지는 경우가 있음)

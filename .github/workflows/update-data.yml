@@ -44,7 +44,7 @@ jobs:
         id: commit
         if: github.event_name != 'push'
         run: |
-          if git diff --quiet -- docs/data/fund.csv docs/data/credit.csv docs/data/shares.csv; then
+          if git diff --quiet -- docs/data/fund.csv docs/data/credit.csv docs/data/shares.csv docs/data/index.csv; then
             echo "새 데이터 없음"
             git checkout -- docs/data
             echo "changed=false" >> "$GITHUB_OUTPUT"

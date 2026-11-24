@@ -1,4 +1,4 @@
-"""data/kofia.json → 대시보드용 CSV 3종 (원자료 금액 백만원→억원, 주수 주→천주)"""
+"""data/kofia.json → 대시보드용 CSV (원자료 금액 백만원→억원, 주수 주→천주, 지수는 그대로)"""
 import json, csv
 d = json.load(open("data/kofia.json"))
 def iso(s): return f"{s[:4]}-{s[4:6]}-{s[6:]}"
@@ -24,5 +24,16 @@ for key,(src,div,nd,names) in specs.items():
             if key=="fund": row.append(s["forcedRatio"][i])
             w.writerow(row)
 
+# 코스피·코스닥 종가지수
+kp = dict(zip(d["kospi"]["date"], d["kospi"]["close"]))
+kq = dict(zip(d["kosdaq"]["date"], d["kosdaq"]["close"]))
+with open("docs/data/index.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["date", "kospi", "kosdaq"])
+    for dt in sorted(set(kp) | set(kq)):
+        w.writerow([iso(dt), kp.get(dt, ""), kq.get(dt, "")])
+
+# 세 통계에 모두 있는 마지막 날짜 = 대시보드 기준일
+common = set(d["fund"]["date"]) & set(d["credit"]["date"]) & set(d["shares"]["date"])
 with open("docs/data/updated.txt", "w") as f:
-    f.write(f"{d['updated']} KST · 최신 거래일 {iso(d['fund']['date'][-1])}\n")
+    f.write(f"{d['updated']} KST · 최신 거래일 {iso(max(common))}\n")
