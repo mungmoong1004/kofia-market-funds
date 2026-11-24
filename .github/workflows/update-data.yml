@@ -7,6 +7,10 @@ on:
     - cron: "0 9 * * 1-5"   # 평일 18:00 KST (UTC 09:00)
     - cron: "0 23 * * 0-4"  # 평일 08:00 KST (UTC 전날 23:00) — 아침에 늦게 올라온 자료 보완
   workflow_dispatch:
+    inputs:
+      keep:
+        description: "남길 실행 기록 수"
+        default: "10"
   push:
     branches: [main]
     paths: ["docs/**"]       # 페이지를 직접 고쳐 올렸을 때 배포
@@ -15,6 +19,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
@@ -69,3 +74,22 @@ jobs:
       - name: Pages 배포
         id: deploy
         uses: actions/deploy-pages@v5
+
+  # 이 워크플로의 실행 기록은 최근 10개만 남기고 지운다 (실행 중인 것은 건드리지 않음)
+  cleanup:
+    needs: [update, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KEEP: ${{ inputs.keep || '10' }}
+    steps:
+      - name: 오래된 실행 기록 삭제
+        run: |
+          ids=$(gh run list -R "$GITHUB_REPOSITORY" -w update-data.yml -L 200 \
+                  --json databaseId,status --jq '.[] | select(.status == "completed") | .databaseId' \
+                | tail -n +$((KEEP + 1)))
+          for id in $ids; do
+            gh run delete "$id" -R "$GITHUB_REPOSITORY" && echo "삭제: $id"
+          done
+          echo "정리 완료"
