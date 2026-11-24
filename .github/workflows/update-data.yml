@@ -1,33 +1,66 @@
 name: 데이터 갱신
 
+# 데이터 수집과 GitHub Pages 배포를 이 워크플로 하나에서 한다.
+# (Pages 배포 소스가 "GitHub Actions"라서 pages-build-deployment 기록이 따로 생기지 않는다)
 on:
   schedule:
     - cron: "0 9 * * 1-5"   # 평일 18:00 KST (UTC 09:00)
     - cron: "0 23 * * 0-4"  # 평일 08:00 KST (UTC 전날 23:00) — 아침에 늦게 올라온 자료 보완
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["docs/**"]       # 페이지를 직접 고쳐 올렸을 때 배포
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: 금융투자협회 데이터 받기
+        if: github.event_name != 'push'
         run: |
           python fetch_kofia.py
           python make_csv.py
       - name: 바뀐 데이터 커밋
+        id: commit
+        if: github.event_name != 'push'
         run: |
           if git diff --quiet -- docs/data/fund.csv docs/data/credit.csv docs/data/shares.csv; then
-            echo "새 데이터 없음"; exit 0
+            echo "새 데이터 없음"
+            git checkout -- docs/data
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/data
           git commit -m "데이터 갱신: $(tail -1 docs/data/fund.csv | cut -d, -f1)"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Pages 배포 준비
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/configure-pages@v6
+      - name: 페이지 묶기
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+      - name: Pages 배포
+        id: deploy
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/deploy-pages@v5
