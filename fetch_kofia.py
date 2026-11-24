@@ -1,18 +1,27 @@
 """금융투자협회 FreeSIS 증시자금/신용공여 통계 수집 → data/kofia.json"""
-import json, urllib.request, datetime, os
+import json, urllib.request, datetime, os, time
 from zoneinfo import ZoneInfo
 KST = ZoneInfo("Asia/Seoul")
 
 URL = "https://freesis.kofia.or.kr/meta/getMetaDataList.do"
 START_YEAR = 2018
 
-def fetch(obj, s, e):
+def fetch(obj, s, e_):
     body = {"dmSearch": {"tmpV40": "1", "tmpV41": "1", "tmpV1": "D",
-                         "tmpV45": s, "tmpV46": e, "OBJ_NM": obj}}
+                         "tmpV45": s, "tmpV46": e_, "OBJ_NM": obj}}
     req = urllib.request.Request(URL, json.dumps(body).encode(),
                                  {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r)["ds1"] or []
+    last = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                raw = r.read().decode("utf-8", "replace")
+            return json.loads(raw)["ds1"] or []
+        except Exception as e:  # 일시 오류는 재시도, 마지막엔 응답 앞부분을 보여 준다
+            last = e
+            print(f"[{obj} {s}~{e_}] 시도 {attempt+1} 실패: {e!r}; 응답 앞부분: {locals().get('raw', '')[:300]!r}")
+            time.sleep(5)
+    raise last
 
 def collect(obj):
     today = datetime.datetime.now(KST).date()
