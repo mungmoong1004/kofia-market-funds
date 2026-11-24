@@ -1,4 +1,4 @@
-"""data/kofia.json → 대시보드용 CSV 3종 (금액 억원, 주수 천주)"""
+"""data/kofia.json → 대시보드용 CSV 3종 (원자료 금액 백만원→억원, 주수 주→천주)"""
 import json, csv
 d = json.load(open("data/kofia.json"))
 def iso(s): return f"{s[:4]}-{s[4:6]}-{s[6:]}"
@@ -7,8 +7,8 @@ def num(v, div, nd):
     x = round(v / div, nd)
     return int(x) if nd == 0 else x
 specs = {
-  "fund":   (["deposit","derivDeposit","rp","unpaid","forcedSale"], 1e8, 0, ["deposit","deriv_deposit","rp","unpaid","forced_sale"]),
-  "credit": (["loanTotal","loanKospi","loanKosdaq","shortTotal","shortKospi","shortKosdaq","ipoLoan","secLoan"], 1e8, 0,
+  "fund":   (["deposit","derivDeposit","rp","unpaid","forcedSale"], 100, 0, ["deposit","deriv_deposit","rp","unpaid","forced_sale"]),
+  "credit": (["loanTotal","loanKospi","loanKosdaq","shortTotal","shortKospi","shortKosdaq","ipoLoan","secLoan"], 100, 0,
              ["loan_total","loan_kospi","loan_kosdaq","short_total","short_kospi","short_kosdaq","ipo_loan","sec_loan"]),
   "shares": (["loanTotal","loanKospi","loanKosdaq","shortTotal","shortKospi","shortKosdaq"], 1000, 0,
              ["loan_total","loan_kospi","loan_kosdaq","short_total","short_kospi","short_kosdaq"]),
