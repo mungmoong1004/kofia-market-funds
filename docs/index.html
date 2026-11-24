@@ -68,7 +68,7 @@ h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); font-weight: 600; letter-spac
 .kpi-label { font-size: 12px; color: var(--muted); }
 .kpi-value { font-size: clamp(21px, 3vw, 28px); font-weight: 500; line-height: 1.15; white-space: nowrap; }
 .kpi-unit { font-family: var(--font); font-size: 12px; color: var(--muted); margin-left: 3px; }
-.kpi-chg { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; color: var(--muted); }
+.kpi-chg { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
 .up { color: var(--up); } .down { color: var(--down); }
 .bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 8px; margin-block: -8px;
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; border-bottom: 1px solid transparent; }
@@ -83,6 +83,12 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nav::-webkit-scrollbar { display: none; }
 .nav a { flex: none; font-size: 13px; color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); }
 .nav a:hover { color: var(--fg); }
+@media (max-width: 640px) {
+  .bar { flex-wrap: nowrap; gap: 8px; }
+  .seg button { padding: 7px 9px; }
+  .nav { flex: 1 1 auto; }
+  section { scroll-margin-top: 64px; }
+}
 section { scroll-margin-top: 110px; display: flex; flex-direction: column; gap: 12px; }
 h2 { margin: 0; font-size: 19px; font-weight: 600; }
 .sub { margin: 0; font-size: 13px; color: var(--muted); max-width: 78ch; }
@@ -421,6 +427,10 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
     const ix0 = IDX.get(at(0)), ix1 = IDX.get(at(1));
     if (ix0 && ix0.kospi) {
       const a = document.createElement('span'); a.append('코스닥 ', mk('num', ix0.kosdaq ? f2(+ix0.kosdaq) : '—'));
+      if (ix0.kosdaq && ix1 && ix1.kosdaq) {
+        const dk = +ix0.kosdaq - +ix1.kosdaq;
+        a.append(' ', mk('num ' + (dk > 0 ? 'up' : dk < 0 ? 'down' : ''), '(' + sgn(f2)(dk) + ')'));
+      }
       card('코스피 종가', f2(+ix0.kospi), 'pt', [ix1 && ix1.kospi ? chg('전일', +ix0.kospi - +ix1.kospi, f2) : mk('', ''), a]);
     }
     std('장내파생상품 거래예수금', f, 'deriv_deposit', 1e4, '조원', f2);
