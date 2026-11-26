@@ -83,6 +83,11 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nav::-webkit-scrollbar { display: none; }
 .nav a { flex: none; font-size: 13px; color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); }
 .nav a:hover { color: var(--fg); }
+.ext { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 2px 16px; font-size: 12px; color: var(--muted); }
+.ext:empty { display: none; }
+.ext b { font-family: var(--mono); font-weight: 500; color: var(--fg); }
+.ext b.up { color: var(--up); } .ext b.down { color: var(--down); }
+.ext-label { font-size: 11px; font-family: var(--mono); fill: var(--fg); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
 @media (max-width: 640px) {
   .bar { flex-wrap: nowrap; gap: 8px; }
   .seg button { padding: 7px 9px; }
@@ -157,8 +162,8 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
     <h2>코스피·코스닥 지수</h2>
     <p class="sub">아래 증시자금·신용공여 지표와 같은 기간의 종가지수입니다. 신용융자 잔고 차트의 툴팁에도 그날 지수가 함께 나옵니다.</p>
     <div class="grid">
-      <div class="card"><h3>코스피 (pt)</h3><div class="legend" data-chart="c-kospi"></div><div class="chart" id="c-kospi"></div></div>
-      <div class="card"><h3>코스닥 (pt)</h3><div class="legend" data-chart="c-kosdaq"></div><div class="chart" id="c-kosdaq"></div></div>
+      <div class="card"><h3>코스피 (pt)</h3><div class="legend" data-chart="c-kospi"></div><div class="ext" data-ext="c-kospi"></div><div class="chart" id="c-kospi"></div></div>
+      <div class="card"><h3>코스닥 (pt)</h3><div class="legend" data-chart="c-kosdaq"></div><div class="ext" data-ext="c-kosdaq"></div><div class="chart" id="c-kosdaq"></div></div>
     </div>
   </section>
 
@@ -234,8 +239,8 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
 
   // series: [열 이름, 표시 이름, 색 번호]
   const charts = {
-    'c-kospi':  { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, series: [['kospi', '코스피', 4]] },
-    'c-kosdaq': { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, series: [['kosdaq', '코스닥', 4]] },
+    'c-kospi':  { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, extremes: true, series: [['kospi', '코스피', 4]] },
+    'c-kosdaq': { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, extremes: true, series: [['kosdaq', '코스닥', 4]] },
     'c-fund':   { src: 'fund', div: 10000, unit: '조원', fmt: f2, tick: f0, series: [['deposit', '투자자예탁금', 0], ['deriv_deposit', '파생 거래예수금', 1], ['rp', 'RP 매도잔고', 2]] },
     'c-unpaid': { src: 'fund', unit: '억원', fmt: f0, series: [['unpaid', '위탁매매 미수금', 0]] },
     'c-forced': { src: 'fund', type: 'bar', unit: '억원', fmt: f0, series: [['forced_sale', '반대매매금액', 3]],
@@ -285,9 +290,10 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
     let ymin = 0;
     if (cfg.zero === false) {
       const lo = d3.min(data, (d) => d3.min(vals(d)));
-      ymin = lo - (ymax - lo) * 0.08;
+      ymin = lo - (ymax - lo) * (cfg.extremes ? 0.16 : 0.08);
     }
-    const y = d3.scaleLinear().domain([ymin, ymax || 1]).nice();
+    const ytop = cfg.extremes ? ymax + (ymax - ymin) * 0.12 : ymax;
+    const y = d3.scaleLinear().domain([ymin, ytop || 1]).nice();
     const yt = y.ticks(W < 360 ? 4 : 5);
     const tf = cfg.tick || cfg.fmt;
     const probe = svg.append('g').attr('class', 'axis');
@@ -338,6 +344,39 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
         const v = cfg.type === 'stack' ? (acc += last[k] || 0) : last[k];
         if (v != null) g.append('circle').attr('cx', x(last.date)).attr('cy', y(v)).attr('r', 3).style('fill', colors[i]);
       });
+    }
+
+    if (cfg.extremes) {
+      const k = keys[0], pts = data.filter((d) => d[k] != null);
+      const box = document.querySelector('.ext[data-ext="' + id + '"]');
+      if (pts.length) {
+        const hi = d3.greatest(pts, (d) => d[k]), lo = d3.least(pts, (d) => d[k]), cur = pts[pts.length - 1];
+        const md = d3.utcFormat('%y.%m.%d');
+        [[hi, '최고', -9], [lo, '최저', 16]].forEach(([d, label, dy]) => {
+          const px = x(d.date), py = y(d[k]);
+          g.append('circle').attr('cx', px).attr('cy', py).attr('r', 3.5)
+            .style('fill', 'var(--panel)').style('stroke', colors[0]).style('stroke-width', 1.8);
+          g.append('text').attr('class', 'ext-label').attr('x', px).attr('y', py + dy)
+            .attr('text-anchor', px > iw * 0.75 ? 'end' : px < iw * 0.25 ? 'start' : 'middle')
+            .text(label + ' ' + cfg.fmt(d[k]));
+        });
+        if (box) {
+          const pct = (a, b) => (a / b - 1) * 100;
+          const fromHi = pct(cur[k], hi[k]), fromLo = pct(cur[k], lo[k]);
+          const item = (label, value, cls) => {
+            const s = document.createElement('span'); s.append(label + ' ');
+            const b = document.createElement('b'); b.textContent = value; if (cls) b.className = cls;
+            s.append(b); return s;
+          };
+          const pf = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1) + '%';
+          box.replaceChildren(
+            item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')'),
+            item('현재 대비', pf(fromHi), fromHi < 0 ? 'down' : fromHi > 0 ? 'up' : ''),
+            item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')'),
+            item('현재 대비', pf(fromLo), fromLo > 0 ? 'up' : fromLo < 0 ? 'down' : '')
+          );
+        }
+      } else if (box) box.replaceChildren();
     }
 
     const hl = g.append('line').attr('class', 'hl').attr('y1', 0).attr('y2', ih).style('opacity', 0);
