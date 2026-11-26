@@ -85,6 +85,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nav a:hover { color: var(--fg); }
 .ext { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 2px 16px; font-size: 12px; color: var(--muted); }
 .ext:empty { display: none; }
+.ext-now { grid-column: 1 / -1; }
 .ext b { font-family: var(--mono); font-weight: 500; color: var(--fg); }
 .ext b.up { color: var(--up); } .ext b.down { color: var(--down); }
 .ext-label { font-size: 11px; font-family: var(--mono); fill: var(--fg); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
@@ -369,7 +370,9 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
             s.append(b); return s;
           };
           const pf = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1) + '%';
+          const now = item('현재', cfg.fmt(cur[k]) + ' (' + md(cur.date) + ')'); now.className = 'ext-now';
           box.replaceChildren(
+            now,
             item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')'),
             item('현재 대비', pf(fromHi), fromHi < 0 ? 'down' : fromHi > 0 ? 'up' : ''),
             item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')'),
