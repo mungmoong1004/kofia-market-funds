@@ -4,8 +4,13 @@ name: 데이터 갱신
 # (Pages 배포 소스가 "GitHub Actions"라서 pages-build-deployment 기록이 따로 생기지 않는다)
 on:
   schedule:
-    - cron: "0 9 * * 1-5"   # 평일 18:00 KST (UTC 09:00)
-    - cron: "0 23 * * 0-4"  # 평일 08:00 KST (UTC 전날 23:00) — 아침에 늦게 올라온 자료 보완
+    # GitHub 예약 실행은 정시에 몰려 몇 시간씩 늦거나 빠지기도 해서, 정각을 피한 시각에 여러 번 돌린다.
+    # 새 데이터가 없으면 커밋 없이 끝나므로 자주 돌려도 페이지·기록에는 영향이 없다.
+    - cron: "17 23 * * 0-4"   # 평일 08:17 KST
+    - cron: "17 3 * * 1-5"    # 평일 12:17 KST
+    - cron: "17 7 * * 1-5"    # 평일 16:17 KST
+    - cron: "47 9 * * 1-5"    # 평일 18:47 KST
+    - cron: "17 12 * * 1-5"   # 평일 21:17 KST
   workflow_dispatch:
     inputs:
       keep:
