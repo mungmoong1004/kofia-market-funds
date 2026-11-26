@@ -161,7 +161,7 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
 
   <section id="index">
     <h2>코스피·코스닥 지수</h2>
-    <p class="sub">아래 증시자금·신용공여 지표와 같은 기간의 종가지수입니다. 신용융자 잔고 차트의 툴팁에도 그날 지수가 함께 나옵니다.</p>
+    <p class="sub">아래 증시자금·신용공여 지표와 같은 기간의 종가지수이며, 당일 종가까지 나옵니다. 신용융자 잔고 차트의 툴팁에도 그날 지수가 함께 나옵니다.</p>
     <div class="grid">
       <div class="card"><h3>코스피 (pt)</h3><div class="legend" data-chart="c-kospi"></div><div class="ext" data-ext="c-kospi"></div><div class="chart" id="c-kospi"></div></div>
       <div class="card"><h3>코스닥 (pt)</h3><div class="legend" data-chart="c-kosdaq"></div><div class="ext" data-ext="c-kosdaq"></div><div class="chart" id="c-kosdaq"></div></div>
@@ -216,11 +216,12 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
     <ul>
       <li>금액은 협회 원자료(백만원)를 억원으로 바꿨고, 조원은 억원을 10,000으로 나눈 값입니다.</li>
       <li>'전일'은 직전 거래일, '20일'은 20거래일 전(약 1개월) 대비 변화입니다. 증가는 빨강, 감소는 파랑입니다.</li>
-      <li>지표 카드와 요약 문장은 증시자금·신용공여·잔고주수 세 통계에 모두 있는 가장 최근 날짜를 기준으로 합니다.</li>
+      <li>지표 카드와 요약 문장은 증시자금·신용공여·잔고주수 세 통계에 모두 있는 가장 최근 날짜를 기준으로 합니다. 코스피·코스닥만 당일 종가까지 나오므로 하루 앞설 수 있습니다.</li>
+      <li>코스피·코스닥 지수는 협회 '유가증권시장·코스닥시장' 통계를 쓰고, 협회에 아직 올라오지 않은 최근 종가는 네이버 금융 종가(장 마감 뒤)로 채웁니다. 협회 자료가 올라오면 협회 값으로 바뀝니다.</li>
       <li>반대매매 비중은 협회가 공시한 '위탁매매 미수금 대비 실제 반대매매금액 비중(%)'입니다. 반대매매 차트의 선은 20거래일 이동평균입니다.</li>
       <li>예탁금 대비 신용융자 비율 = 신용거래융자 잔고 ÷ 투자자예탁금 × 100.</li>
       <li>신용공여 자료는 결제일 기준이며, 2002년 5월 이후 유가증권·코스닥, 2007년 7월 이후 ETF 신용공여가 포함됩니다(협회 유의사항).</li>
-      <li>협회 통계는 보통 다음 영업일에 발표되며, 이 페이지는 평일 08시·18시에 자동으로 갱신을 시도합니다. 본 정보는 투자 참고자료입니다.</li>
+      <li>협회 통계는 보통 다음 영업일에 발표되며, 이 페이지는 평일 08:10·12:10·16:10·18:40·21:10에 자동으로 갱신을 시도합니다. 본 정보는 투자 참고자료입니다.</li>
     </ul>
   </details>
 </div>
@@ -466,14 +467,16 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
     std('신용거래융자 잔고', c, 'loan_total', 1e4, '조원', f2);
     const r0 = ratio(f[0], c[0]);
     card('예탁금 대비 신용융자', f2(r0), '%', [chg('전일', r0 - ratio(f[1], c[1]), f2, '%p'), chg('20일', r0 - ratio(f[2], c[2]), f2, '%p')]);
-    const ix0 = IDX.get(at(0)), ix1 = IDX.get(at(1));
+    // 지수는 당일 종가까지 들어오므로 다른 지표보다 하루 앞설 수 있다: 지수 자체의 마지막 날과 그 전날로 비교
+    const ixRows = DATA.index.filter((r) => r.kospi);
+    const ix0 = ixRows[ixRows.length - 1], ix1 = ixRows[ixRows.length - 2];
     if (ix0 && ix0.kospi) {
       const a = document.createElement('span'); a.append('코스닥 ', mk('num', ix0.kosdaq ? f2(+ix0.kosdaq) : '—'));
       if (ix0.kosdaq && ix1 && ix1.kosdaq) {
         const dk = +ix0.kosdaq - +ix1.kosdaq;
         a.append(' ', mk('num ' + (dk > 0 ? 'up' : dk < 0 ? 'down' : ''), '(' + sgn(f2)(dk) + ')'));
       }
-      card('코스피 종가', f2(+ix0.kospi), 'pt', [ix1 && ix1.kospi ? chg('전일', +ix0.kospi - +ix1.kospi, f2) : mk('', ''), a]);
+      card('코스피 종가' + (ix0.date !== at(0) ? ' (' + d3.utcFormat('%m.%d')(parse(ix0.date)) + ')' : ''), f2(+ix0.kospi), 'pt', [ix1 && ix1.kospi ? chg('전일', +ix0.kospi - +ix1.kospi, f2) : mk('', ''), a]);
     }
     std('장내파생상품 거래예수금', f, 'deriv_deposit', 1e4, '조원', f2);
     std('신용거래대주 잔고', c, 'short_total', 1, '억원', f0);
