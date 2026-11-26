@@ -46,19 +46,21 @@ def naver_closes(code):
         out[day.replace("-", "")] = float(row["closePrice"].replace(",", ""))
     return out
 
+naver_days = set()
 for code, series in (("KOSPI", kp), ("KOSDAQ", kq)):
     last = max(series) if series else ""
     try:
         added = {dt: v for dt, v in naver_closes(code).items() if dt > last}
         series.update(added)
+        naver_days |= set(added)
         print(f"{code}: 협회 마지막 {last}, 네이버로 추가 {sorted(added) or '없음'}")
     except Exception as e:
         print(f"{code}: 네이버 종가 받기 실패, 협회 자료만 사용 ({e!r})")
 with open("docs/data/index.csv", "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["date", "kospi", "kosdaq"])
+    w.writerow(["date", "kospi", "kosdaq", "src"])  # src: kofia(금융투자협회) / naver(협회 미발표 당일 종가)
     for dt in sorted(set(kp) | set(kq)):
-        w.writerow([iso(dt), kp.get(dt, ""), kq.get(dt, "")])
+        w.writerow([iso(dt), kp.get(dt, ""), kq.get(dt, ""), "naver" if dt in naver_days else "kofia"])
 
 # 세 통계에 모두 있는 마지막 날짜 = 대시보드 기준일
 common = set(d["fund"]["date"]) & set(d["credit"]["date"]) & set(d["shares"]["date"])

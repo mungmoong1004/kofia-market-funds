@@ -86,6 +86,8 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .ext { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 2px 16px; font-size: 12px; color: var(--muted); }
 .ext:empty { display: none; }
 .ext-now { grid-column: 1 / -1; }
+.src-tag { display: inline-block; font-size: 10.5px; line-height: 1.4; padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-family: var(--font); vertical-align: 1px; }
+.nv-line { margin-top: 2px; }
 .ext b { font-family: var(--mono); font-weight: 500; color: var(--fg); }
 .ext b.up { color: var(--up); } .ext b.down { color: var(--down); }
 .ext-label { font-size: 11px; font-family: var(--mono); fill: var(--fg); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
@@ -161,7 +163,7 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
 
   <section id="index">
     <h2>코스피·코스닥 지수</h2>
-    <p class="sub">아래 증시자금·신용공여 지표와 같은 기간의 종가지수이며, 당일 종가까지 나옵니다. 신용융자 잔고 차트의 툴팁에도 그날 지수가 함께 나옵니다.</p>
+    <p class="sub">아래 증시자금·신용공여 지표와 같은 기간의 종가지수입니다. 협회에 아직 없는 당일 종가는 네이버 금융 값으로 덧붙이고 "네이버" 표시를 답니다. 신용융자 잔고 차트의 툴팁에도 그날 지수가 함께 나옵니다.</p>
     <div class="grid">
       <div class="card"><h3>코스피 (pt)</h3><div class="legend" data-chart="c-kospi"></div><div class="ext" data-ext="c-kospi"></div><div class="chart" id="c-kospi"></div></div>
       <div class="card"><h3>코스닥 (pt)</h3><div class="legend" data-chart="c-kosdaq"></div><div class="ext" data-ext="c-kosdaq"></div><div class="chart" id="c-kosdaq"></div></div>
@@ -241,8 +243,8 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
 
   // series: [열 이름, 표시 이름, 색 번호]
   const charts = {
-    'c-kospi':  { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, extremes: true, series: [['kospi', '코스피', 4]] },
-    'c-kosdaq': { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, extremes: true, series: [['kosdaq', '코스닥', 4]] },
+    'c-kospi':  { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, extremes: true, series: [['kospi', '코스피', 4]], extra: [['src', '출처', (v) => (v === 'naver' ? '네이버 (당일 종가)' : '금융투자협회')]] },
+    'c-kosdaq': { src: 'index', unit: 'pt', fmt: f2, tick: f0, zero: false, extremes: true, series: [['kosdaq', '코스닥', 4]], extra: [['src', '출처', (v) => (v === 'naver' ? '네이버 (당일 종가)' : '금융투자협회')]] },
     'c-fund':   { src: 'fund', div: 10000, unit: '조원', fmt: f2, tick: f0, series: [['deposit', '투자자예탁금', 0], ['deriv_deposit', '파생 거래예수금', 1], ['rp', 'RP 매도잔고', 2]] },
     'c-unpaid': { src: 'fund', unit: '억원', fmt: f0, series: [['unpaid', '위탁매매 미수금', 0]] },
     'c-forced': { src: 'fund', type: 'bar', unit: '억원', fmt: f0, series: [['forced_sale', '반대매매금액', 3]],
@@ -372,6 +374,7 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
           };
           const pf = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1) + '%';
           const now = item('현재', cfg.fmt(cur[k]) + ' (' + md(cur.date) + ')'); now.className = 'ext-now';
+          if (cur.r.src === 'naver') { const t = document.createElement('span'); t.className = 'src-tag'; t.textContent = '네이버 당일 종가'; now.append(' ', t); }
           box.replaceChildren(
             now,
             item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')'),
@@ -467,16 +470,28 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
     std('신용거래융자 잔고', c, 'loan_total', 1e4, '조원', f2);
     const r0 = ratio(f[0], c[0]);
     card('예탁금 대비 신용융자', f2(r0), '%', [chg('전일', r0 - ratio(f[1], c[1]), f2, '%p'), chg('20일', r0 - ratio(f[2], c[2]), f2, '%p')]);
-    // 지수는 당일 종가까지 들어오므로 다른 지표보다 하루 앞설 수 있다: 지수 자체의 마지막 날과 그 전날로 비교
-    const ixRows = DATA.index.filter((r) => r.kospi);
-    const ix0 = ixRows[ixRows.length - 1], ix1 = ixRows[ixRows.length - 2];
+    // 카드는 다른 지표와 같은 날짜의 협회 지수. 협회에 아직 없는 당일 종가(네이버)는 별도 줄로 표시
+    const ix0 = IDX.get(at(0)), ix1 = IDX.get(at(1));
+    const nv = DATA.index.filter((r) => r.src === 'naver' && r.kospi && r.date > at(0)).pop();
     if (ix0 && ix0.kospi) {
       const a = document.createElement('span'); a.append('코스닥 ', mk('num', ix0.kosdaq ? f2(+ix0.kosdaq) : '—'));
       if (ix0.kosdaq && ix1 && ix1.kosdaq) {
         const dk = +ix0.kosdaq - +ix1.kosdaq;
         a.append(' ', mk('num ' + (dk > 0 ? 'up' : dk < 0 ? 'down' : ''), '(' + sgn(f2)(dk) + ')'));
       }
-      card('코스피 종가' + (ix0.date !== at(0) ? ' (' + d3.utcFormat('%m.%d')(parse(ix0.date)) + ')' : ''), f2(+ix0.kospi), 'pt', [ix1 && ix1.kospi ? chg('전일', +ix0.kospi - +ix1.kospi, f2) : mk('', ''), a]);
+      const lines = [ix1 && ix1.kospi ? chg('전일', +ix0.kospi - +ix1.kospi, f2) : mk('', ''), a];
+      if (nv) {
+        const n = document.createElement('span'); n.className = 'nv-line';
+        n.append(mk('src-tag', '네이버 ' + d3.utcFormat('%m.%d')(parse(nv.date))), ' ', mk('num', f2(+nv.kospi)));
+        const dn = +nv.kospi - +ix0.kospi;
+        n.append(' ', mk('num ' + (dn > 0 ? 'up' : dn < 0 ? 'down' : ''), '(' + sgn(f2)(dn) + ')'));
+        if (nv.kosdaq) {
+          n.append(' · 코스닥 ', mk('num', f2(+nv.kosdaq)));
+          if (ix0.kosdaq) { const dq = +nv.kosdaq - +ix0.kosdaq; n.append(' ', mk('num ' + (dq > 0 ? 'up' : dq < 0 ? 'down' : ''), '(' + sgn(f2)(dq) + ')')); }
+        }
+        lines.push(n);
+      }
+      card('코스피 종가', f2(+ix0.kospi), 'pt', lines);
     }
     std('장내파생상품 거래예수금', f, 'deriv_deposit', 1e4, '조원', f2);
     std('신용거래대주 잔고', c, 'short_total', 1, '억원', f0);
