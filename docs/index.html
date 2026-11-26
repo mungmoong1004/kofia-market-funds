@@ -85,6 +85,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nav a:hover { color: var(--fg); }
 .ext { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 2px 16px; font-size: 12px; color: var(--muted); }
 .ext:empty { display: none; }
+@media (max-width: 520px) { .ext { grid-template-columns: 1fr; } .ext > span:nth-child(3), .ext > span:nth-child(5) { padding-left: 1.2em; margin-bottom: 2px; } }
 .ext-now { grid-column: 1 / -1; }
 .src-tag { display: inline-block; font-size: 10.5px; line-height: 1.4; padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-family: var(--font); vertical-align: 1px; }
 .nv-line { margin-top: 2px; }
@@ -367,6 +368,12 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
         if (box) {
           const pct = (a, b) => (a / b - 1) * 100;
           const fromHi = pct(cur[k], hi[k]), fromLo = pct(cur[k], lo[k]);
+          // 현재가에서 최고·최저가 되려면 몇 % 움직여야 하는지
+          const toHi = pct(hi[k], cur[k]), toLo = pct(lo[k], cur[k]);
+          const withTo = (span, label, v) => {
+            const b = document.createElement('b'); b.textContent = pf(v); b.className = v > 0 ? 'up' : v < 0 ? 'down' : '';
+            span.append(' (' + label + ' ', b, ')'); return span;
+          };
           const item = (label, value, cls) => {
             const s = document.createElement('span'); s.append(label + ' ');
             const b = document.createElement('b'); b.textContent = value; if (cls) b.className = cls;
@@ -378,9 +385,9 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
           box.replaceChildren(
             now,
             item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')'),
-            item('현재 대비', pf(fromHi), fromHi < 0 ? 'down' : fromHi > 0 ? 'up' : ''),
+            withTo(item('현재 대비', pf(fromHi), fromHi < 0 ? 'down' : fromHi > 0 ? 'up' : ''), '최고까지', toHi),
             item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')'),
-            item('현재 대비', pf(fromLo), fromLo > 0 ? 'up' : fromLo < 0 ? 'down' : '')
+            withTo(item('현재 대비', pf(fromLo), fromLo > 0 ? 'up' : fromLo < 0 ? 'down' : ''), '최저까지', toLo)
           );
         }
       } else if (box) box.replaceChildren();
