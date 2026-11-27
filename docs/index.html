@@ -25,7 +25,7 @@
 :root {
   --bg: #f6f7f9; --panel: #ffffff; --fg: #15191e; --muted: #5d6673; --line: #e2e5ea; --grid: #edf0f3;
   --c0: #2f5fd0; --c1: #e07b39; --c2: #2a9d8f; --c3: #c2415b; --c4: #15191e;
-  --up: #c2415b; --down: #2f5fd0; --warn-bg: #fff4e5; --warn-fg: #8a4b00; --warn-line: #f0c48a;
+  --up: #c2415b; --down: #2f5fd0; --hi: #d62f2f; --lo: #2563eb; --now: #16a34a; --warn-bg: #fff4e5; --warn-fg: #8a4b00; --warn-line: #f0c48a;
   --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --r: 10px;
@@ -34,14 +34,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #101418; --panel: #171c22; --fg: #e8ebef; --muted: #98a2ae; --line: #2a313a; --grid: #222930;
-    --c0: #6f98ff; --c1: #f0a066; --c2: #4fc4b4; --c3: #ef7a92; --c4: #e8ebef; --up: #ef7a92; --down: #6f98ff;
+    --c0: #6f98ff; --c1: #f0a066; --c2: #4fc4b4; --c3: #ef7a92; --c4: #e8ebef; --up: #ef7a92; --down: #6f98ff; --hi: #ff6b6b; --lo: #6f98ff; --now: #4ade80;
     --warn-bg: #2b2212; --warn-fg: #f3c27a; --warn-line: #5c4520;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101418; --panel: #171c22; --fg: #e8ebef; --muted: #98a2ae; --line: #2a313a; --grid: #222930;
-  --c0: #6f98ff; --c1: #f0a066; --c2: #4fc4b4; --c3: #ef7a92; --c4: #e8ebef; --up: #ef7a92; --down: #6f98ff;
+  --c0: #6f98ff; --c1: #f0a066; --c2: #4fc4b4; --c3: #ef7a92; --c4: #e8ebef; --up: #ef7a92; --down: #6f98ff; --hi: #ff6b6b; --lo: #6f98ff; --now: #4ade80;
   --warn-bg: #2b2212; --warn-fg: #f3c27a; --warn-line: #5c4520;
   color-scheme: dark;
 }
@@ -91,6 +91,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nv-line { margin-top: 2px; }
 .ext b { font-family: var(--mono); font-weight: 500; color: var(--fg); }
 .ext b.up { color: var(--up); } .ext b.down { color: var(--down); }
+.ext b.hi { color: var(--hi); } .ext b.lo { color: var(--lo); } .ext b.now { color: var(--now); }
 .ext-label { font-size: 11px; font-family: var(--mono); fill: var(--fg); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
 @media (max-width: 640px) {
   .bar { flex-wrap: nowrap; gap: 8px; }
@@ -357,11 +358,12 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
       if (pts.length) {
         const hi = d3.greatest(pts, (d) => d[k]), lo = d3.least(pts, (d) => d[k]), cur = pts[pts.length - 1];
         const md = d3.utcFormat('%y.%m.%d');
-        [[hi, '최고', -9], [lo, '최저', 16]].forEach(([d, label, dy]) => {
+        const curDy = cur === hi ? -22 : cur === lo ? 29 : (y(cur[k]) < ih / 2 ? 22 : -16);
+        [[hi, '최고', -9, 'var(--hi)'], [lo, '최저', 16, 'var(--lo)'], [cur, '현재', curDy, 'var(--now)']].forEach(([d, label, dy, col]) => {
           const px = x(d.date), py = y(d[k]);
-          g.append('circle').attr('cx', px).attr('cy', py).attr('r', 3.5)
-            .style('fill', 'var(--panel)').style('stroke', colors[0]).style('stroke-width', 1.8);
-          g.append('text').attr('class', 'ext-label').attr('x', px).attr('y', py + dy)
+          g.append('circle').attr('cx', px).attr('cy', py).attr('r', 4)
+            .style('fill', col).style('stroke', 'var(--panel)').style('stroke-width', 1.5);
+          g.append('text').attr('class', 'ext-label').style('fill', col).style('font-weight', 600).attr('x', px).attr('y', py + dy)
             .attr('text-anchor', px > iw * 0.75 ? 'end' : px < iw * 0.25 ? 'start' : 'middle')
             .text(label + ' ' + cfg.fmt(d[k]));
         });
@@ -380,13 +382,13 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
             s.append(b); return s;
           };
           const pf = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1) + '%';
-          const now = item('현재', cfg.fmt(cur[k]) + ' (' + md(cur.date) + ')'); now.className = 'ext-now';
+          const now = item('현재', cfg.fmt(cur[k]) + ' (' + md(cur.date) + ')', 'now'); now.className = 'ext-now';
           if (cur.r.src === 'naver') { const t = document.createElement('span'); t.className = 'src-tag'; t.textContent = '네이버 당일 종가'; now.append(' ', t); }
           box.replaceChildren(
             now,
-            item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')'),
+            item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')', 'hi'),
             withTo(item('현재 대비', pf(fromHi), fromHi < 0 ? 'down' : fromHi > 0 ? 'up' : ''), '최고까지', toHi),
-            item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')'),
+            item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')', 'lo'),
             withTo(item('현재 대비', pf(fromLo), fromLo > 0 ? 'up' : fromLo < 0 ? 'down' : ''), '최저까지', toLo)
           );
         }
