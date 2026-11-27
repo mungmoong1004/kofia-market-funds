@@ -41,12 +41,18 @@ SPECS = {
 }
 out = {"updated": datetime.datetime.now(KST).strftime("%Y-%m-%d %H:%M")}
 # 금액은 백만원, 주수는 주 단위로 받는다 (원 단위로 받으면 큰 값이 #으로 가려지는 경우가 있음)
-for key, (obj, unit, cols) in SPECS.items():
-    data = collect(obj, unit)
-    out[key] = {"date": [r["TMPV1"] for r in data]}
-    for i, c in enumerate(cols):
-        out[key][c] = [r.get(f"TMPV{i+2}") for r in data]
-    print(key, len(data), data[0]["TMPV1"], data[-1]["TMPV1"])
+# 협회가 점검·방화벽 차단 등으로 응답하지 않으면 멈추지 않고 실패만 기록한다.
+# (make_csv.py가 기존 CSV를 그대로 두고 네이버 종가만 보충한다)
+try:
+    for key, (obj, unit, cols) in SPECS.items():
+        data = collect(obj, unit)
+        out[key] = {"date": [r["TMPV1"] for r in data]}
+        for i, c in enumerate(cols):
+            out[key][c] = [r.get(f"TMPV{i+2}") for r in data]
+        print(key, len(data), data[0]["TMPV1"], data[-1]["TMPV1"])
+except Exception as e:
+    print(f"금융투자협회 데이터 받기 실패 → 기존 자료 유지: {e!r}")
+    out = {"updated": out["updated"], "failed": True}
 os.makedirs("data", exist_ok=True)
 with open("data/kofia.json", "w") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
