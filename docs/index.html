@@ -580,7 +580,7 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
   window.addEventListener('resize', () => { if (window.innerWidth === lastW) return; lastW = window.innerWidth; clearTimeout(rw); rw = setTimeout(drawAll, 150); });
 
   drawAll();
-  const bust = '?v=' + Math.floor(Date.now() / 36e5);
+  const bust = '?v=' + Math.floor(Date.now() / 6e4);
   Promise.all(['fund', 'credit', 'shares', 'index'].map((k) => d3.csv('data/' + k + '.csv' + bust).then((rows) => { DATA[k] = rows; })))
     .then(() => {
       derive(); kpis(); table(); drawAll();
