@@ -91,7 +91,6 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nv-line { margin-top: 2px; }
 .ext b { font-family: var(--mono); font-weight: 500; color: var(--fg); }
 .ext b.up { color: var(--up); } .ext b.down { color: var(--down); }
-.ext b.hi { color: var(--hi); } .ext b.lo { color: var(--lo); } .ext b.now { color: var(--now); }
 .ext-label { font-size: 11px; font-family: var(--mono); fill: var(--fg); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
 @media (max-width: 640px) {
   .bar { flex-wrap: nowrap; gap: 8px; }
@@ -382,13 +381,13 @@ details ul { margin: 8px 0 0; padding-left: 1.2em; font-size: 13px; color: var(-
             s.append(b); return s;
           };
           const pf = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1) + '%';
-          const now = item('현재', cfg.fmt(cur[k]) + ' (' + md(cur.date) + ')', 'now'); now.className = 'ext-now';
+          const now = item('현재', cfg.fmt(cur[k]) + ' (' + md(cur.date) + ')'); now.className = 'ext-now';
           if (cur.r.src === 'naver') { const t = document.createElement('span'); t.className = 'src-tag'; t.textContent = '네이버 당일 종가'; now.append(' ', t); }
           box.replaceChildren(
             now,
-            item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')', 'hi'),
+            item('최고', cfg.fmt(hi[k]) + ' (' + md(hi.date) + ')'),
             withTo(item('현재 대비', pf(fromHi), fromHi < 0 ? 'down' : fromHi > 0 ? 'up' : ''), '최고까지', toHi),
-            item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')', 'lo'),
+            item('최저', cfg.fmt(lo[k]) + ' (' + md(lo.date) + ')'),
             withTo(item('현재 대비', pf(fromLo), fromLo > 0 ? 'up' : fromLo < 0 ? 'down' : ''), '최저까지', toLo)
           );
         }
